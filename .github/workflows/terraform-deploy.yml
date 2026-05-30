@@ -37,6 +37,7 @@ jobs:
         run: terraform init
 
       - name: Terraform Plan
+        id: plan
         run: terraform plan -no-color
 
       - name: Terraform Apply
@@ -45,6 +46,8 @@ jobs:
 
   terraform-prod:
     name: "Prod - Plan & Apply"
+    # ONLY run prod if we are on the main branch (after dev is validated and merged)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: terraform-dev
     runs-on: ubuntu-latest
     environment: production
@@ -66,5 +69,4 @@ jobs:
         run: terraform plan -no-color
 
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve
