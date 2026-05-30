@@ -1,17 +1,17 @@
 name: "Prod Infrastructure"
 
 on:
-  # Only trigger Prod when Dev workflow completes successfully on the main branch
-  workflow_run:
-    workflows: ["Dev Infrastructure"]
-    types:
-      - completed
+  push:
     branches:
-      - main
+      - production
+  pull_request:
+    branches:
+      - production
 
 permissions:
   id-token: write
   contents: read
+  security-events: write
 
 env:
   ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -20,10 +20,32 @@ env:
   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
 
 jobs:
+  lint-and-scan:
+    name: "Lint & Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v3
+        with:
+          tflint_version: v0.44.1
+
+      - name: Init TFLint
+        run: tflint --init
+
+      - name: Run TFLint
+        run: tflint -f compact
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0
+        with:
+          soft_fail: true
+
   prod-deploy:
     name: "Prod Deploy"
-    # Ensure this only runs if the Dev workflow succeeded
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: lint-and-scan
     runs-on: ubuntu-latest
     environment: production
     defaults:
@@ -44,4 +66,5 @@ jobs:
         run: terraform plan -no-color
 
       - name: Terraform Apply
+        if: github.ref == 'refs/heads/production' && github.event_name == 'push'
         run: terraform apply -auto-approve
