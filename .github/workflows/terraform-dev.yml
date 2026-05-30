@@ -1,4 +1,4 @@
-name: "Azure Terraform Deploy"
+name: "Dev Infrastructure"
 
 on:
   push:
@@ -19,8 +19,8 @@ env:
   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
 
 jobs:
-  terraform-dev:
-    name: "Dev - Plan & Apply"
+  dev-deploy:
+    name: "Dev Deploy"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -37,36 +37,8 @@ jobs:
         run: terraform init
 
       - name: Terraform Plan
-        id: plan
         run: terraform plan -no-color
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve
-
-  terraform-prod:
-    name: "Prod - Plan & Apply"
-    # ONLY run prod if we are on the main branch (after dev is validated and merged)
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: terraform-dev
-    runs-on: ubuntu-latest
-    environment: production
-    defaults:
-      run:
-        working-directory: envs/prod
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Plan
-        run: terraform plan -no-color
-
-      - name: Terraform Apply
         run: terraform apply -auto-approve
